@@ -1,5 +1,5 @@
-import {NewButton} from "@/app/(dashborard)/_components/sidebar/new-button";
-import {List} from "@/app/(dashborard)/_components/sidebar/list";
+import {NewButton} from "@/app/(dashboard)/_components/sidebar/new-button";
+import {List} from "@/app/(dashboard)/_components/sidebar/list";
 
 export const Sidebar = () => {
   return (

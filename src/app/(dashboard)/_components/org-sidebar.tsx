@@ -38,6 +38,7 @@ export const OrgSidebar = () => {
               alignItems: "center",
               width: "100%",
             },
+            avatarBox: "w-9 h-9",
             organizationSwitcherTrigger: {
               padding: "6px",
               width: "100%",
