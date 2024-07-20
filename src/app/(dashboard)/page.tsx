@@ -1,9 +1,24 @@
-import {UserButton} from "@clerk/nextjs";
+"use client"
+import {Empty} from "@/app/(dashboard)/_components/empty";
+import {useOrganization} from "@clerk/nextjs";
+import {BorderList} from "@/app/(dashboard)/_components/border-list";
 
-export default function DashboardPage() {
+interface DashboardPageProps {
+  searchParams: {
+    search: string;
+    favorites?: string;
+  }
+}
+
+export default function DashboardPage({searchParams}: DashboardPageProps) {
+  const {organization} = useOrganization();
   return (
-    <div className="flex flex-col gap-y-4">
-      <div>This is a body</div>
+    <div className="flex-1 h-[calc(100%-80px)] p-6">
+      {!organization ? (
+        <Empty/>
+      ) : (
+        <BorderList orgId={organization.id} query={searchParams}/>
+      )}
     </div>
   );
 }

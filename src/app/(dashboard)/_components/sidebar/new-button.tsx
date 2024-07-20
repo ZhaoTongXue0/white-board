@@ -18,7 +18,11 @@ export const NewButton = () => {
         </div>
       </DialogTrigger>
       <DialogContent className="p-0 bg-transparent border-none max-w-[480px]">
-        <CreateOrganization routing="hash"/>
+        <CreateOrganization routing="hash" appearance={{
+          elements: {
+            cardBox: "w-[480px] z-0",
+          }
+        }}/>
       </DialogContent>
     </Dialog>
   )
