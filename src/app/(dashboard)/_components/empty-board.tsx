@@ -1,7 +1,30 @@
+"use client";
+
 import Image from "next/image";
 import {Button} from "@/components/ui/button";
+import {useMutation} from "convex/react";
+import {api} from "../../../../convex/_generated/api";
+import {useOrganization} from "@clerk/nextjs";
+import {UseApiMutation} from "@/hooks/use-api-mutation";
+import {toast} from "sonner";
 
 export const EmptyBoard = () => {
+  const {organization} = useOrganization();
+  const { mutate,pending } = UseApiMutation(api.board.create);
+
+  const onClick = () => {
+    if (!organization) return;
+
+    mutate({
+      orgId: organization.id,
+      title: "Untitled"
+    })
+      .then((id)=>{
+        toast.success("画板")
+      })
+      .catch(()=> toast.error("创建画板失败"))
+  }
+
   return (
     <div className="h-full flex flex-col justify-center items-center">
       <Image src="/empty-boards.svg" alt="画板为空" width={110} height={110}/>
@@ -12,7 +35,7 @@ export const EmptyBoard = () => {
         为你的组织创建第一个画板
       </p>
       <div className="mt-6">
-        <Button size="lg">
+        <Button disabled={pending} onClick={onClick} size="lg">
           创建画板
         </Button>
       </div>
