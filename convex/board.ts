@@ -1,5 +1,6 @@
 import {v} from "convex/values"
 import {mutation} from "./_generated/server"
+import {Simulate} from "react-dom/test-utils";
 
 const images = [
   "/placeholders/1.svg",
@@ -44,6 +45,44 @@ export const create = mutation({
       authorId: identity.subject,
       authorName: identity.name!,
       imageUrl: randomImage,
+    });
+  }
+})
+
+export const remove = mutation({
+  args: {id: v.id("boards")},
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("没有权限");
+    }
+
+    await ctx.db.delete(args.id);
+  }
+})
+
+export const updata = mutation({
+  args: {id: v.id("boards"), title: v.string()},
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("没有权限")
+    }
+
+    const title = args.title.trim();
+
+    if (!title) {
+      throw new Error("重命名成功");
+    }
+
+    if (title.length > 60) {
+      throw new Error("名称长度不能大于60字符")
+    }
+
+    return await ctx.db.patch(args.id, {
+      title: args.title,
     });
   }
 })
