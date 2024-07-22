@@ -13,7 +13,7 @@ export const UseApiMutation = (mutationFunction: any) => {
         return result;
       })
       .catch((error) => {
-        throw error;
+        throw error;      
       })
   }
 
