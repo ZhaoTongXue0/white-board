@@ -2,13 +2,18 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import {Overlay} from "@/app/(dashboard)/_components/board-card/overlay";
 import {useAuth} from "@clerk/clerk-react";
-import {formatDistanceToNow} from "date-fns";
-import {Footer} from "@/app/(dashboard)/_components/board-card/footer";
-import {Skeleton} from "@/components/ui/skeleton";
-import {Actions} from "@/components/actions";
 import {MoreHorizontal} from "lucide-react";
+import {formatDistanceToNow} from "date-fns";
+import {toast} from "sonner";
+
+import {Actions} from "@/components/actions";
+import {Skeleton} from "@/components/ui/skeleton";
+import {api} from "../../../../../convex/_generated/api"
+import {UseApiMutation} from "@/hooks/use-api-mutation";
+
+import {Overlay} from "@/app/(dashboard)/_components/board-card/overlay";
+import {Footer} from "@/app/(dashboard)/_components/board-card/footer";
 
 interface BoardCardProps {
   id: string;
@@ -22,14 +27,27 @@ interface BoardCardProps {
 }
 
 export const BoardCard = (
-  {id, title, authorId, authorName, createdAt, imageUrl, isFavorite,}: BoardCardProps
+  {id, title, authorId, authorName, createdAt, imageUrl, isFavorite,orgId}: BoardCardProps
 ) => {
-
   const {userId} = useAuth();
+
   const authorLabel = userId === authorId ? "you" : authorName;
   const createdAtLabel = formatDistanceToNow(createdAt, {
     addSuffix: true,
   })
+
+  const {mutate: onFavorite, pending: pendingFavorite} = UseApiMutation(api.board.favorite)
+  const {mutate: onUnFavorite, pending: pendingUnFavorite} = UseApiMutation(api.board.unFavorite)
+
+  const toggleFavorite = () => {
+    if (isFavorite) {
+      onUnFavorite({id})
+        .catch(() => toast.error("未能取消星标"))
+    } else {
+      onFavorite({id, orgId})
+        .catch(() => toast.error("未能添加星标"))
+    }
+  }
 
   return (
     <Link href={`/board/${id}`}>
@@ -44,9 +62,14 @@ export const BoardCard = (
             </button>
           </Actions>
         </div>
-        <Footer isFavorite={isFavorite} title={title} authorLable={authorLabel} createdAtLabel={createdAtLabel}
-                onClick={() => {
-                }} disabled={false}/>
+        <Footer
+          isFavorite={isFavorite}
+          title={title}
+          authorLable={authorLabel}
+          createdAtLabel={createdAtLabel}
+          onClick={toggleFavorite}
+          disabled={pendingFavorite || pendingUnFavorite}
+        />
       </div>
     </Link>
   )

@@ -1,6 +1,7 @@
 import {v} from "convex/values"
 import {mutation} from "./_generated/server"
 import {Simulate} from "react-dom/test-utils";
+import {initialEnv} from "@next/env";
 
 const images = [
   "/placeholders/1.svg",
@@ -84,5 +85,85 @@ export const updata = mutation({
     return await ctx.db.patch(args.id, {
       title: args.title,
     });
+  }
+})
+
+export const favorite = mutation({
+  args: {
+    id: v.id("boards"),
+    orgId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("没有权限");
+    }
+
+    const board = await ctx.db.get(args.id);
+
+    if (!board) {
+      throw new Error("找不到画板")
+    }
+
+    const userId = identity.subject;
+
+    const existingFavorite = await ctx.db
+      .query("userFavorites")
+      .withIndex("by_user_board_org", (q) =>
+        q
+          .eq("userId", userId)
+          .eq("boardId", board._id)
+          .eq("orgId", args.orgId)
+      )
+      .unique();
+
+    if (existingFavorite) {
+      throw new Error("已是星标，无需在添加");
+    }
+
+    await ctx.db.insert("userFavorites", {
+      userId,
+      boardId: board._id,
+      orgId: args.orgId,
+    });
+
+    return board;
+  }
+})
+
+export const unFavorite = mutation({
+  args: {id: v.id("boards")},
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("没有权限");
+    }
+
+    const board = await ctx.db.get(args.id);
+
+    if (!board) {
+      throw new Error("找不到画板")
+    }
+
+    const userId = identity.subject;
+
+    const existingFavorite = await ctx.db
+      .query("userFavorites")
+      .withIndex("by_user_board", (q) =>
+        q
+          .eq("userId", userId)
+          .eq("boardId", board._id)
+      )
+      .unique();
+
+    if (!existingFavorite) {
+      throw new Error("未找到指定的画板");
+    }
+
+    await ctx.db.delete(existingFavorite._id);
+
+    return board;
   }
 })
