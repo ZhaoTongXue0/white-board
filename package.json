@@ -7,10 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "update-convex": "npx convex dev"
+    "convex": "npx convex dev"
   },
   "dependencies": {
     "@clerk/nextjs": "^5.2.4",
+    "@liveblocks/client": "^2.3.0",
+    "@liveblocks/react": "^2.3.0",
     "@radix-ui/react-alert-dialog": "^1.1.1",
     "@radix-ui/react-dialog": "^1.1.1",
     "@radix-ui/react-dropdown-menu": "^2.1.1",
