@@ -5,6 +5,7 @@ import {Plus} from "lucide-react";
 import {api} from "../../../../convex/_generated/api";
 import {UseApiMutation} from "@/hooks/use-api-mutation";
 import {toast} from "sonner";
+import {useRouter} from "next/navigation";
 
 interface NewBoardButton {
   orgId: string;
@@ -14,17 +15,19 @@ interface NewBoardButton {
 export const NewBoardButton = (
   {orgId, disabled}: NewBoardButton
 ) => {
-  const {mutate,pending} = UseApiMutation(api.board.create);
+  const router = useRouter();
+  const {mutate, pending} = UseApiMutation(api.board.create);
 
   const onClick = () => {
     mutate({
       orgId,
       title: "无标题",
     })
-      .then((id)=>{
+      .then((id) => {
         toast.success("创建画板");
+        router.push(`/board/${id}`);
       })
-      .catch(()=> toast.error("创建画板失败"))
+      .catch(() => toast.error("创建画板失败"))
   }
 
   return (

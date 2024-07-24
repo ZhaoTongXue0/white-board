@@ -2,13 +2,14 @@
 
 import Image from "next/image";
 import {Button} from "@/components/ui/button";
-import {useMutation} from "convex/react";
 import {api} from "../../../../convex/_generated/api";
 import {useOrganization} from "@clerk/nextjs";
 import {UseApiMutation} from "@/hooks/use-api-mutation";
 import {toast} from "sonner";
+import {useRouter} from "next/navigation";
 
 export const EmptyBoard = () => {
+  const router = useRouter();
   const {organization} = useOrganization();
   const { mutate,pending } = UseApiMutation(api.board.create);
 
@@ -21,6 +22,7 @@ export const EmptyBoard = () => {
     })
       .then((id)=>{
         toast.success("画板")
+        router.push(`/board/${id}`);
       })
       .catch(()=> toast.error("创建画板失败"))
   }
