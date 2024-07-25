@@ -6,7 +6,7 @@ import {
   RoomProvider,
   ClientSideSuspense,
 } from "@liveblocks/react/suspense";
-import {Loading} from "@/app/board/[boardId]/_components/loading";
+import {Loading} from "@/components/auth/loading";
 
 interface RoomProps {
   children: ReactNode
@@ -18,7 +18,7 @@ export function Room(
   {children, roomId, fallback}: RoomProps
 ) {
   return (
-    <LiveblocksProvider publicApiKey={"pk_dev_thLq_Y9un0XeMAnrmaml8qVO2gSRGFgjDEy4EROTFnTiAdD_ZhA_wNiY16uk77Rm"}>
+    <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
       <RoomProvider id={roomId}>
         <ClientSideSuspense fallback={<Loading/>}>
           {children}

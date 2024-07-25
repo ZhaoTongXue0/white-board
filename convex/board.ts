@@ -1,7 +1,8 @@
 import {v} from "convex/values"
-import {mutation} from "./_generated/server"
+import {mutation, query} from "./_generated/server"
 import {Simulate} from "react-dom/test-utils";
 import {initialEnv} from "@next/env";
+import arg from "arg";
 
 const images = [
   "/placeholders/1.svg",
@@ -177,6 +178,15 @@ export const unFavorite = mutation({
     }
 
     await ctx.db.delete(existingFavorite._id);
+
+    return board;
+  }
+})
+
+export const get = query({
+  args: {id: v.id("boards")},
+  handler: async (ctx, args) => {
+    const board = ctx.db.get(args.id)
 
     return board;
   }
