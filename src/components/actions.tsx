@@ -15,6 +15,7 @@ import {api} from "../../convex/_generated/api";
 import {ConfirmModel} from "@/components/confirm-model";
 import {Button} from "@/components/ui/button";
 import {useRenameModal} from "@/store/use-rename-modal";
+import {useRouter} from "next/navigation";
 
 interface ActionsProps {
   children: React.ReactNode;
@@ -22,25 +23,32 @@ interface ActionsProps {
   sideOffset?: DropdownMenuContentProps["sideOffset"];
   id: string;
   title: string;
+  deleteRouter?: boolean;
 }
 
 export const Actions = (
-  {children, side, sideOffset, id, title}: ActionsProps
+  {children, side, sideOffset, id, title, deleteRouter}: ActionsProps
 ) => {
   const {onOpen} = useRenameModal();
   const {mutate, pending} = UseApiMutation(api.board.remove);
+  const route = useRouter();
 
   const onCoptLink = () => {
+    const boardTitle = title;
     navigator.clipboard.writeText(
         `${window.location.origin}/board/${id}`,
       )
-      .then(() => toast.success("链接已复制"))
+      .then(() => toast.success("画板《" + boardTitle + "》链接已复制"))
       .catch(() => toast.error("复制链接失败"))
   }
 
   const onDelete = () => {
+    const boardTitle = title;
     mutate({id})
-      .then(() => toast.success("删除画板"))
+      .then(() => {
+        toast.success("画板《" + boardTitle + "》已删除")
+        if (deleteRouter) route.back();
+      })
       .catch(() => toast.error("删除画板失败"))
   }
 
