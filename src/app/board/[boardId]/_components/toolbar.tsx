@@ -49,26 +49,49 @@ export const Toolbar = (
           label="便利贴"
           icon={StickyNote}
           onClick={() => {
+            setCanvasState({mode: CanvasMode.Inserting, layerType: LayerType.Note})
+            LogMessage("切换为便利贴工具")
           }}
-          isActive={false}/>
+          isActive={
+            canvasState.mode === CanvasMode.Inserting &&
+            canvasState.layerType === LayerType.Note
+          }
+        />
         <ToolButton
           label="矩形"
           icon={Square}
           onClick={() => {
+            setCanvasState({mode: CanvasMode.Inserting, layerType: LayerType.Rectangle})
+            LogMessage("切换为矩形工具")
           }}
-          isActive={false}/>
+          isActive={
+            canvasState.mode === CanvasMode.Inserting &&
+            canvasState.layerType === LayerType.Rectangle
+          }
+        />
         <ToolButton
           label="椭圆形"
           icon={Circle}
           onClick={() => {
+            setCanvasState({mode: CanvasMode.Inserting, layerType: LayerType.Ellipse})
+            LogMessage("切换为椭圆形工具")
           }}
-          isActive={false}/>
+          isActive={
+            canvasState.mode === CanvasMode.Inserting &&
+            canvasState.layerType === LayerType.Ellipse
+          }
+        />
         <ToolButton
           label="画笔"
           icon={Pen}
           onClick={() => {
+            setCanvasState({mode: CanvasMode.Pencil})
+            LogMessage("切换为画笔工具")
           }}
-          isActive={false}/>
+          isActive={
+            canvasState.mode === CanvasMode.Pencil
+          }
+        />
       </div>
       <div className="bg-white rounded-md p-1.5 flex flex-col items-center shadow-md">
         <ToolButton label="撤销" icon={Undo} onClick={undo} isDisabled={!canUndo}/>
