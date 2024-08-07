@@ -18,7 +18,7 @@ export function connectionIdToColor(connectionId: number): string {
   return COLORS[connectionId % COLORS.length];
 }
 
-export function pointEventToCanvasPoint(e: React.PointerEvent, camera: Camera) {
+export function pointerEventToCanvasPoint(e: React.PointerEvent, camera: Camera) {
   return {
     x: Math.round(e.clientX) - camera.x,
     y: Math.round(e.clientY) - camera.y,
