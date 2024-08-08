@@ -9,7 +9,7 @@ interface LayerPreviewProps {
   id: string;
   onLayerPointDown: (e: React.PointerEvent, layerId: string) => void;
   selectionColor?: string;
-};
+}
 
 export const LayerPreview = memo((
   {id, onLayerPointDown, selectionColor}: LayerPreviewProps
@@ -22,7 +22,14 @@ export const LayerPreview = memo((
 
   switch (layer.type) {
     case LayerType.Rectangle:
-      return (<Rectangle id={id} layer={layer} onPointerDown={onLayerPointDown} selectionColor={selectionColor}/>);
+      return (
+        <Rectangle
+          id={id}
+          layer={layer}
+          onPointerDown={onLayerPointDown}
+          selectionColor={selectionColor}
+        />
+      );
     default:
       console.warn("未知类型");
       return null;

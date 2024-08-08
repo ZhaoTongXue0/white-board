@@ -1,8 +1,9 @@
 "use client";
 
-import {useCallback, useState} from "react";
+import {useCallback, useMemo, useState} from "react";
 
 import {useHistory, useCanUndo, useCanRedo, useMutation, useSelf, useStorage} from "@liveblocks/react/suspense";
+import {useOthersMapped} from "@liveblocks/react";
 import {Camera, CanvasMode, CanvasState, Color, LayerType, Point} from "@/types/canvas";
 import {LiveObject} from "@liveblocks/core";
 
@@ -10,7 +11,7 @@ import {Toolbar} from "@/app/board/[boardId]/_components/toolbar";
 import {Participants} from "@/app/board/[boardId]/_components/participants";
 import {Info} from "@/app/board/[boardId]/_components/info";
 import {CursorsPresence} from "@/app/board/[boardId]/_components/cursors-presence";
-import {pointerEventToCanvasPoint} from "@/lib/utils";
+import {connectionIdToColor, pointerEventToCanvasPoint} from "@/lib/utils";
 import {nanoid} from "nanoid";
 import {LayerPreview} from "@/app/board/[boardId]/_components/layer-preview";
 
@@ -39,7 +40,7 @@ export const Canvas = ({boardId}: CanvasProps) => {
   const canRedo = useCanRedo();
   const canUndo = useCanUndo();
 
-  // 插入图层
+  /**插入图层。读取lastUsedColor的默认值rgb：0,0,0*/
   const inserLayer = useMutation((
     {storage, setMyPresence},
     LayerType: LayerType.Ellipse | LayerType.Rectangle | LayerType.Text | LayerType.Note,
@@ -72,7 +73,27 @@ export const Canvas = ({boardId}: CanvasProps) => {
     setCanvasState({mode: CanvasMode.None});
   }, [lastUsedColor]);
 
-  // 点击屏幕的up事件
+  /**光标坐标*/
+  const onWheel = useCallback((e: React.WheelEvent) => {
+    setCamera((camera) => ({
+      x: camera.x - e.deltaX,
+      y: camera.y - e.deltaY,
+    }))
+  }, []);
+
+  /**用户光标移动*/
+  const onPointerMove = useMutation(({setMyPresence}, e: React.PointerEvent) => {
+    e.preventDefault();
+    const current = pointerEventToCanvasPoint(e, camera);
+    setMyPresence({cursor: current});
+  }, []);
+
+  /**用户光标离开标签页*/
+  const onPointerLeave = useMutation(({setMyPresence}) => {
+    setMyPresence({cursor: null});
+  }, []);
+
+  /**点击屏幕的up事件*/
   const opPointerUp = useMutation(({}, e) => {
     const point = pointerEventToCanvasPoint(e, camera);
 
@@ -87,25 +108,43 @@ export const Canvas = ({boardId}: CanvasProps) => {
 
   }, [camera, canvasState, history, inserLayer]);
 
-  // 光标坐标
-  const onWheel = useCallback((e: React.WheelEvent) => {
-    setCamera((camera) => ({
-      x: camera.x - e.deltaX,
-      y: camera.y - e.deltaY,
-    }))
-  }, []);
+  /**查看图层是否被选择*/
+  const selections = useOthersMapped(other => other.presence.selection);
 
-  // 用户光标移动
-  const onPointerMove = useMutation(({setMyPresence}, e: React.PointerEvent) => {
-    e.preventDefault();
-    const current = pointerEventToCanvasPoint(e, camera);
-    setMyPresence({cursor: current});
-  }, []);
+  /**图层选中*/
+  const onLayerPointerDown = useMutation((
+    {self, setMyPresence},
+    e: React.PointerEvent,
+    layerId: string,
+  ) => {
+    // 处于画笔工具和插入时不会触发该事件
+    if (canvasState.mode === CanvasMode.Pencil || canvasState.mode === CanvasMode.Inserting) return;
 
-  // 用户光标离开标签页
-  const onPointerLeave = useMutation(({setMyPresence}) => {
-    setMyPresence({cursor: null});
-  }, []);
+    history.pause();
+    e.stopPropagation();
+
+    const point = pointerEventToCanvasPoint(e, camera);
+
+    if (!self.presence.selection.includes(layerId)) {
+      setMyPresence({selection: [layerId]}, {addToHistory: true});
+    }
+    setCanvasState({mode: CanvasMode.Translating, current: point});
+  }, [setCanvasState, camera, history, canvasState.mode]);
+
+  /**图层选中时显示的颜色，被选择的图层与用户的光标颜色一致*/
+  const layerIdsToColorSelection = useMemo(() => {
+    const layerIdsToColorSelection: Record<string, string> = {};
+
+    for (const user of selections) {
+      const [connectionId, selection] = user;
+
+      for (const layerId of selection) {
+        layerIdsToColorSelection[layerId] = connectionIdToColor(connectionId);
+      }
+    }
+
+    return layerIdsToColorSelection;
+  }, [selections]);
 
   return (
     <main className="h-full w-full relative bg-neutral-100 touch-none">
@@ -135,9 +174,8 @@ export const Canvas = ({boardId}: CanvasProps) => {
             <LayerPreview
               key={layerId}
               id={layerId}
-              onLayerPointDown={() => {
-              }}
-              selectionColor="#000"
+              onLayerPointDown={onLayerPointerDown}
+              selectionColor={layerIdsToColorSelection[layerId]}
             />
           ))}
           <CursorsPresence/>
