@@ -14,6 +14,7 @@ import {Info} from "@/app/board/[boardId]/_components/info";
 import {CursorsPresence} from "@/app/board/[boardId]/_components/cursors-presence";
 import {LayerPreview} from "@/app/board/[boardId]/_components/layer-preview";
 import {SelectionBox} from "@/app/board/[boardId]/_components/selection-box";
+import {SelectionTools} from "@/app/board/[boardId]/_components/selection-tools";
 
 // 限制最大图层数量 = 100
 const MAX_LAYERS = 100;
@@ -208,7 +209,7 @@ export const Canvas = ({boardId}: CanvasProps) => {
 
     history.resume();
 
-  }, [camera, canvasState, history, inserLayer,unSelectLayers]);
+  }, [camera, canvasState, history, inserLayer, unSelectLayers]);
 
   /**查看图层是否被选择*/
   const selections = useOthersMapped(
@@ -261,6 +262,10 @@ export const Canvas = ({boardId}: CanvasProps) => {
         canUndo={canUndo}
         redo={history.redo}
         undo={history.undo}
+      />
+      <SelectionTools
+        camera={camera}
+        setLastUsedColor={setLastUsedColor}
       />
       <svg
         className="h-[100vh] w-[100vw]"
