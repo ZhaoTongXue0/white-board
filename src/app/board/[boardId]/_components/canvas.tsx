@@ -1,19 +1,19 @@
 "use client";
 
 import {useCallback, useMemo, useState} from "react";
-
-import {useHistory, useCanUndo, useCanRedo, useMutation, useSelf, useStorage} from "@liveblocks/react/suspense";
+import {useCanRedo, useCanUndo, useHistory, useMutation, useStorage} from "@liveblocks/react/suspense";
 import {useOthersMapped} from "@liveblocks/react";
-import {Camera, CanvasMode, CanvasState, Color, LayerType, Point} from "@/types/canvas";
 import {LiveObject} from "@liveblocks/core";
+import {nanoid} from "nanoid";
 
+import {Camera, CanvasMode, CanvasState, Color, LayerType, Point, Side, XYWH} from "@/types/canvas";
+import {connectionIdToColor, pointerEventToCanvasPoint, resizeBounds} from "@/lib/utils";
 import {Toolbar} from "@/app/board/[boardId]/_components/toolbar";
 import {Participants} from "@/app/board/[boardId]/_components/participants";
 import {Info} from "@/app/board/[boardId]/_components/info";
 import {CursorsPresence} from "@/app/board/[boardId]/_components/cursors-presence";
-import {connectionIdToColor, pointerEventToCanvasPoint} from "@/lib/utils";
-import {nanoid} from "nanoid";
 import {LayerPreview} from "@/app/board/[boardId]/_components/layer-preview";
+import {SelectionBox} from "@/app/board/[boardId]/_components/selection-box";
 
 // 限制最大图层数量 = 100
 const MAX_LAYERS = 100;
@@ -40,7 +40,10 @@ export const Canvas = ({boardId}: CanvasProps) => {
   const canRedo = useCanRedo();
   const canUndo = useCanUndo();
 
-  /**插入图层。读取lastUsedColor的默认值rgb：0,0,0*/
+  /**
+   * 插入图层
+   * 读取lastUsedColor的默认值rgb：0,0,0
+   */
   const inserLayer = useMutation((
     {storage, setMyPresence},
     LayerType: LayerType.Ellipse | LayerType.Rectangle | LayerType.Text | LayerType.Note,
@@ -73,6 +76,98 @@ export const Canvas = ({boardId}: CanvasProps) => {
     setCanvasState({mode: CanvasMode.None});
   }, [lastUsedColor]);
 
+  /**
+   * 点按选择框任意一个点时触发
+   * */
+  const onResizeBoxPointDown = useCallback((
+    corner: Side,
+    initialBounds: XYWH,
+  ) => {
+
+    history.pause();
+    setCanvasState({
+      mode: CanvasMode.Resizing,
+      initialBounds,
+      corner,
+    })
+
+  }, [history])
+
+  const unSelectLayers = useMutation((
+    {self, setMyPresence}
+  ) => {
+    if (self.presence.selection.length > 0) {
+      setMyPresence({selection: []}, {addToHistory: true});
+    }
+  }, [])
+
+  /**
+   * 触发条件：选中的图层调整大小
+   * */
+  const resizeSelectedLayer = useMutation((
+    {storage, self},
+    point: Point,
+  ) => {
+    if (canvasState.mode !== CanvasMode.Resizing) return;
+
+    const bounds = resizeBounds(
+      canvasState.initialBounds,
+      canvasState.corner,
+      point,
+    );
+
+    const liveLayers = storage.get("layers");
+    const layer = liveLayers.get(self.presence.selection[0]);
+
+    if (layer) layer.update(bounds);
+  }, [canvasState]);
+
+  /**
+   * 触发条件：选中的图层移动位置
+   * */
+  const TranslatingSelectedLayers = useMutation((
+    {storage, self},
+    point: Point,
+  ) => {
+    if (canvasState.mode !== CanvasMode.Translating) return;
+
+    const offset = {
+      x: point.x - canvasState.current.x,
+      y: point.y - canvasState.current.y
+    };
+
+    const liveLayers = storage.get("layers");
+
+    for (const id of self.presence.selection) {
+      const layer = liveLayers.get(id);
+
+      if (layer) {
+        layer.update({
+          x: layer.get("x") + offset.x,
+          y: layer.get("y") + offset.y,
+        })
+      }
+    }
+
+    setCanvasState({mode: CanvasMode.Translating, current: point});
+  }, [canvasState])
+
+  /**
+   * 用户移动选择框任意一个点时触发
+   * */
+  const onPointerMove = useMutation(({setMyPresence}, e: React.PointerEvent) => {
+    e.preventDefault();
+    const current = pointerEventToCanvasPoint(e, camera);
+
+    if (canvasState.mode === CanvasMode.Translating) {
+      TranslatingSelectedLayers(current);
+    } else if (canvasState.mode === CanvasMode.Resizing) {
+      resizeSelectedLayer(current);
+    }
+
+    setMyPresence({cursor: current});
+  }, [canvasState, camera, resizeSelectedLayer, TranslatingSelectedLayers]);
+
   /**光标坐标*/
   const onWheel = useCallback((e: React.WheelEvent) => {
     setCamera((camera) => ({
@@ -81,24 +176,31 @@ export const Canvas = ({boardId}: CanvasProps) => {
     }))
   }, []);
 
-  /**用户光标移动*/
-  const onPointerMove = useMutation(({setMyPresence}, e: React.PointerEvent) => {
-    e.preventDefault();
-    const current = pointerEventToCanvasPoint(e, camera);
-    setMyPresence({cursor: current});
-  }, []);
-
   /**用户光标离开标签页*/
   const onPointerLeave = useMutation(({setMyPresence}) => {
     setMyPresence({cursor: null});
   }, []);
 
-  /**点击屏幕的up事件*/
+  const onPointerDown = useCallback((
+    e: React.PointerEvent,
+  ) => {
+    const point = pointerEventToCanvasPoint(e, camera);
+
+    if (canvasState.mode === CanvasMode.Inserting) return;
+
+    setCanvasState({origin: point, mode: CanvasMode.Pressing});
+  }, [camera, canvasState.mode, setCanvasState]);
+
   const opPointerUp = useMutation(({}, e) => {
     const point = pointerEventToCanvasPoint(e, camera);
 
-    // 判断画板的状态是否为插入状态
-    if (canvasState.mode === CanvasMode.Inserting) {
+    if (
+      canvasState.mode === CanvasMode.None ||
+      canvasState.mode === CanvasMode.Pressing
+    ) {
+      unSelectLayers();
+      setCanvasState({mode: CanvasMode.None})
+    } else if (canvasState.mode === CanvasMode.Inserting) {
       inserLayer(canvasState.layerType, point);
     } else {
       setCanvasState({mode: CanvasMode.None});
@@ -106,10 +208,12 @@ export const Canvas = ({boardId}: CanvasProps) => {
 
     history.resume();
 
-  }, [camera, canvasState, history, inserLayer]);
+  }, [camera, canvasState, history, inserLayer,unSelectLayers]);
 
   /**查看图层是否被选择*/
-  const selections = useOthersMapped(other => other.presence.selection);
+  const selections = useOthersMapped(
+    other => other.presence.selection
+  );
 
   /**图层选中*/
   const onLayerPointerDown = useMutation((
@@ -164,6 +268,7 @@ export const Canvas = ({boardId}: CanvasProps) => {
         onPointerMove={onPointerMove}
         onPointerLeave={onPointerLeave}
         onPointerUp={opPointerUp}
+        onPointerDown={onPointerDown}
       >
         <g
           style={{
@@ -178,6 +283,9 @@ export const Canvas = ({boardId}: CanvasProps) => {
               selectionColor={layerIdsToColorSelection[layerId]}
             />
           ))}
+          <SelectionBox
+            onResizeBoxDown={onResizeBoxPointDown}
+          />
           <CursorsPresence/>
         </g>
       </svg>

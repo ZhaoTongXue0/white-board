@@ -31,7 +31,7 @@ export const LayerPreview = memo((
         />
       );
     default:
-      console.warn("未知类型");
+      // console.warn("未知类型");
       return null;
   }
 });

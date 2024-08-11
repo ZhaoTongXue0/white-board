@@ -1,6 +1,6 @@
 import {type ClassValue, clsx} from "clsx"
 import {twMerge} from "tailwind-merge"
-import {Camera, Color, Point} from "@/types/canvas";
+import {Camera, Color, Point, Side, XYWH} from "@/types/canvas";
 
 const COLORS = [
   "#DC2626",
@@ -26,7 +26,7 @@ export function pointerEventToCanvasPoint(e: React.PointerEvent, camera: Camera)
 }
 
 /**rgb转换为16进制*/
-export function colorToCss(color: Color){
+export function colorToCss(color: Color) {
   // 将RGB值转换为16进制字符串，并确保每个值都是两位数
   const hexR = color.r.toString(16).padStart(2, '0');
   const hexG = color.g.toString(16).padStart(2, '0');
@@ -34,4 +34,39 @@ export function colorToCss(color: Color){
 
   // 返回完整的16进制颜色代码
   return `#${hexR}${hexG}${hexB}`;
+}
+
+export function resizeBounds(
+  bounds: XYWH,
+  corner: Side,
+  point: Point
+): XYWH {
+  const result = {
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+  };
+
+  if ((corner & Side.Left) === Side.Left) {
+    result.x = Math.min(point.x, bounds.x + bounds.width);
+    result.width = Math.abs(bounds.x + bounds.width - point.x);
+  }
+
+  if ((corner & Side.Right) === Side.Right) {
+    result.x = Math.min(point.x, bounds.x);
+    result.width = Math.abs(point.x - bounds.x);
+  }
+
+  if ((corner & Side.Top) === Side.Top) {
+    result.y = Math.min(point.y, bounds.y + bounds.height);
+    result.height = Math.abs(bounds.y + bounds.height - point.y);
+  }
+
+  if ((corner & Side.Bottom) === Side.Bottom) {
+    result.y = Math.min(point.y, bounds.y);
+    result.height = Math.abs(point.y - bounds.y);
+  }
+
+  return result;
 }
