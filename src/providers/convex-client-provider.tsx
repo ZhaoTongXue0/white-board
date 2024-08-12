@@ -8,6 +8,7 @@ import {
   ConvexReactClient,
 } from "convex/react";
 import {Loading} from "@/components/auth/loading";
+import {zhCN} from "@clerk/localizations";
 
 interface ConvexClientProviderProps {
   children: React.ReactNode;
@@ -19,7 +20,7 @@ const convex = new ConvexReactClient(convexUrl);
 
 export const ConvexClientProvider = ({children}: ConvexClientProviderProps) => {
   return (
-    <ClerkProvider publishableKey={publishKey}>
+    <ClerkProvider publishableKey={publishKey} localization={zhCN}>
       <ConvexProviderWithClerk useAuth={useAuth} client={convex}>
         <Authenticated>
           {children}

@@ -10,6 +10,7 @@
     "convex": "npx convex dev"
   },
   "dependencies": {
+    "@clerk/localizations": "^2.5.7",
     "@clerk/nextjs": "^5.2.4",
     "@liveblocks/client": "^2.3.0",
     "@liveblocks/node": "^2.3.0",
