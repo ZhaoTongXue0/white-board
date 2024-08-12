@@ -26,6 +26,8 @@ export function Room(
         initialPresence={{
           cursor: null,
           selection: [],
+          penCilDraft: null,
+          penColor: null,
         }}
         initialStorage={{
           layers: new LiveMap<string, LiveObject<Layer>>(),

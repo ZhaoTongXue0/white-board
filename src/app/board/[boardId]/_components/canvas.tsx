@@ -1,15 +1,16 @@
 "use client";
 
-import {useCallback, useMemo, useState} from "react";
-import {useCanRedo, useCanUndo, useHistory, useMutation, useStorage} from "@liveblocks/react/suspense";
+import React, {useCallback, useMemo, useState} from "react";
+import {useCanRedo, useCanUndo, useHistory, useMutation, useSelf, useStorage} from "@liveblocks/react/suspense";
 import {useOthersMapped} from "@liveblocks/react";
 import {LiveObject} from "@liveblocks/core";
 import {nanoid} from "nanoid";
 
 import {Camera, CanvasMode, CanvasState, Color, LayerType, Point, Side, XYWH} from "@/types/canvas";
 import {
+  colorToCss,
   connectionIdToColor,
-  findIntersectingLayersWithRectangle,
+  findIntersectingLayersWithRectangle, penPointsToPathLayer,
   pointerEventToCanvasPoint,
   resizeBounds
 } from "@/lib/utils";
@@ -17,9 +18,10 @@ import {Toolbar} from "@/app/board/[boardId]/_components/toolbar";
 import {Participants} from "@/app/board/[boardId]/_components/participants";
 import {Info} from "@/app/board/[boardId]/_components/info";
 import {CursorsPresence} from "@/app/board/[boardId]/_components/cursors-presence";
-import {LayerPreview} from "@/app/board/[boardId]/_components/layer-preview";
+import {LayerPreview} from "@/app/board/[boardId]/_components/_layer-preview-grap/layer-preview";
 import {SelectionBox} from "@/app/board/[boardId]/_components/selection-box";
 import {SelectionTools} from "@/app/board/[boardId]/_components/selection-tools";
+import {Path} from "@/app/board/[boardId]/_components/_layer-preview-grap/path";
 
 // 限制最大图层数量 = 100
 const MAX_LAYERS = 100;
@@ -31,6 +33,9 @@ interface CanvasProps {
 export const Canvas = ({boardId}: CanvasProps) => {
 
   const layerIds = useStorage((root) => root.layerIds);
+
+  const pencliDraft = useSelf((me) => me.presence.penCilDraft);
+
   const [canvasState, setCanvasState] = useState<CanvasState>({
     mode: CanvasMode.None
   })
@@ -192,6 +197,70 @@ export const Canvas = ({boardId}: CanvasProps) => {
     setCanvasState({mode: CanvasMode.Translating, current: point});
   }, [canvasState])
 
+  const insertPath = useMutation((
+    {storage, self, setMyPresence}
+  ) => {
+    const liveLayers = storage.get("layers");
+    const {penCilDraft} = self.presence;
+
+    if (
+      penCilDraft == null ||
+      penCilDraft.length < 2 ||
+      liveLayers.size >= MAX_LAYERS
+    ) {
+      setMyPresence({penCilDraft: null});
+      return;
+    }
+
+    const id = nanoid();
+    liveLayers.set(
+      id,
+      new LiveObject(penPointsToPathLayer(
+        penCilDraft,
+        lastUsedColor,
+      ))
+    )
+
+    const liveLayerIds = storage.get("layerIds");
+    liveLayerIds.push(id);
+
+    setMyPresence({penCilDraft: null});
+    setCanvasState({mode: CanvasMode.Pencil});
+  }, [lastUsedColor])
+
+  const startDrawing = useMutation((
+    {setMyPresence},
+    point: Point,
+    pressure: number,
+  ) => {
+    setMyPresence({
+      penCilDraft: [[point.x, point.y, pressure]],
+      penColor: lastUsedColor,
+    })
+  }, [lastUsedColor]);
+
+  const continueDrawing = useMutation((
+    {self, setMyPresence},
+    point: Point,
+    e: React.PointerEvent
+  ) => {
+    const {penCilDraft} = self.presence;
+
+    if (canvasState.mode !== CanvasMode.Pencil || e.buttons !== 1 || penCilDraft == null) {
+      return;
+    }
+
+    setMyPresence({
+      cursor: point,
+      penCilDraft:
+        penCilDraft.length === 1 &&
+        penCilDraft[0][0] === point.x &&
+        penCilDraft[0][1] === point.y
+          ? penCilDraft
+          : [...penCilDraft, [point.x, point.y, e.pressure]],
+    });
+  }, [canvasState.mode]);
+
   /**
    * 用户移动选择框任意一个点时触发
    * */
@@ -207,10 +276,12 @@ export const Canvas = ({boardId}: CanvasProps) => {
       TranslatingSelectedLayers(current);
     } else if (canvasState.mode === CanvasMode.Resizing) {
       resizeSelectedLayer(current);
+    } else if (canvasState.mode === CanvasMode.Pencil) {
+      continueDrawing(current, e);
     }
 
     setMyPresence({cursor: current});
-  }, [canvasState, camera, resizeSelectedLayer, TranslatingSelectedLayers]);
+  }, [canvasState, camera, resizeSelectedLayer, TranslatingSelectedLayers, continueDrawing, updateSelectionNet]);
 
   /**光标坐标*/
   const onWheel = useCallback((e: React.WheelEvent) => {
@@ -232,8 +303,13 @@ export const Canvas = ({boardId}: CanvasProps) => {
 
     if (canvasState.mode === CanvasMode.Inserting) return;
 
+    if (canvasState.mode === CanvasMode.Pencil) {
+      startDrawing(point, e.pressure)
+      return;
+    }
+
     setCanvasState({origin: point, mode: CanvasMode.Pressing});
-  }, [camera, canvasState.mode, setCanvasState]);
+  }, [camera, canvasState.mode, setCanvasState, startDrawing]);
 
   const opPointerUp = useMutation((
     {}, e
@@ -246,6 +322,8 @@ export const Canvas = ({boardId}: CanvasProps) => {
     ) {
       unSelectLayers();
       setCanvasState({mode: CanvasMode.None})
+    } else if (canvasState.mode === CanvasMode.Pencil) {
+      insertPath();
     } else if (canvasState.mode === CanvasMode.Inserting) {
       inserLayer(canvasState.layerType, point);
     } else {
@@ -254,7 +332,7 @@ export const Canvas = ({boardId}: CanvasProps) => {
 
     history.resume();
 
-  }, [camera, canvasState, history, inserLayer, unSelectLayers]);
+  }, [setCanvasState, camera, canvasState, history, inserLayer, unSelectLayers, insertPath]);
 
   /**查看图层是否被选择*/
   const selections = useOthersMapped(
@@ -350,6 +428,14 @@ export const Canvas = ({boardId}: CanvasProps) => {
             )
           }
           <CursorsPresence/>
+          {pencliDraft != null && pencliDraft.length > 0 && (
+            <Path
+              points={pencliDraft}
+              fill={colorToCss(lastUsedColor)}
+              x={0}
+              y={0}
+            />
+          )}
         </g>
       </svg>
     </main>
