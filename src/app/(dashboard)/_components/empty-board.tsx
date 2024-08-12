@@ -21,8 +21,8 @@ export const EmptyBoard = () => {
       title: "Untitled"
     })
       .then((id)=>{
-        toast.success("画板")
-        router.push(`/board/${id}`);
+        toast.success("新建画板")
+        // router.push(`/board/${id}`);
       })
       .catch(()=> toast.error("创建画板失败"))
   }

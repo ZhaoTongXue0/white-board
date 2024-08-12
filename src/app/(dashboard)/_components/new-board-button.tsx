@@ -25,7 +25,7 @@ export const NewBoardButton = (
     })
       .then((id) => {
         toast.success("创建画板");
-        router.push(`/board/${id}`);
+        // router.push(`/board/${id}`);
       })
       .catch(() => toast.error("创建画板失败"))
   }
@@ -38,7 +38,7 @@ export const NewBoardButton = (
       <div></div>
       <Plus className="h-12 w-12 text-white stroke-1"></Plus>
       <p className="text-sm text-white font-light">
-        New board
+        新建画板
       </p>
     </button>
   )
