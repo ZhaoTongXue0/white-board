@@ -1,6 +1,6 @@
 "use client";
 
-import React, {useCallback, useMemo, useState} from "react";
+import React, {useCallback, useEffect, useMemo, useState} from "react";
 import {useCanRedo, useCanUndo, useHistory, useMutation, useSelf, useStorage} from "@liveblocks/react/suspense";
 import {useOthersMapped} from "@liveblocks/react";
 import {LiveObject} from "@liveblocks/core";
@@ -22,6 +22,8 @@ import {LayerPreview} from "@/app/board/[boardId]/_components/_layer-preview-gra
 import {SelectionBox} from "@/app/board/[boardId]/_components/selection-box";
 import {SelectionTools} from "@/app/board/[boardId]/_components/selection-tools";
 import {Path} from "@/app/board/[boardId]/_components/_layer-preview-grap/path";
+import {useDisableScrollBounce} from "@/hooks/use-disable-scroll-bounce";
+import {UseDeleteLayers} from "@/hooks/use-delete-layers";
 
 // 限制最大图层数量 = 100
 const MAX_LAYERS = 100;
@@ -47,6 +49,9 @@ export const Canvas = ({boardId}: CanvasProps) => {
     g: 0,
     b: 0,
   })
+
+  useDisableScrollBounce();
+
   const history = useHistory();
   const canRedo = useCanRedo();
   const canUndo = useCanUndo();
@@ -373,6 +378,35 @@ export const Canvas = ({boardId}: CanvasProps) => {
 
     return layerIdsToColorSelection;
   }, [selections]);
+
+  const deleteLayers = UseDeleteLayers();
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      switch (e.key) {
+        case "Backspace":
+          deleteLayers();
+          break;
+        case "z": {
+          if (e.ctrlKey || e.metaKey) {
+            if (e.shiftKey) {
+              history.redo();
+            } else {
+              history.undo();
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+    }
+
+  }, [deleteLayers, history])
 
   return (
     <main className="h-full w-full relative bg-neutral-100 touch-none">
